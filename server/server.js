@@ -1,8 +1,13 @@
 const express = require('express');
 const app = express();
+var jwt = require('jsonwebtoken');
+var multer = require('multer');
+var path = require('path');
 var router = express.Router();
 app.use(require('cors')());
 app.use(express.json());
+//在服务器端建立uploads文件夹用来接受上传的文件，并将uploads文件夹托管为静态文件
+app.use('/image',express.static(path.join(__dirname,'../image')));
 const mongoose = require('mongoose');
 mongoose.connect("mongodb://localhost/Backstage",{useNewUrlParser:true,useUnifiedTopology:true,useFindAndModify:true});
 app.all('*', function(req, res, next) {
@@ -13,15 +18,16 @@ app.all('*', function(req, res, next) {
   res.header("Content-Type", "application/json;charset=utf-8");
   next();
 });
-
+//token
+var jetToken = '123456';
 //封装时间 年月日
 function data (da) {
   var datas = new Date(da);
   var y = datas.getFullYear();
   var m = datas.getMonth() + 1;
   var d = datas.getDate();
-  var dd = y+'-'+m+'-'+d
-  return dd
+  var dd = y+'-'+m+'-'+d;
+  return dd;
 }
 //封装时间 年月日时分秒
 function datam (data) {
@@ -32,20 +38,52 @@ function datam (data) {
   var h = data.getHours();
   var yy = data.getMinutes();
   var dd = data.getSeconds();
-  var datas = y+'-'+m+'-'+d+' '+h+':'+yy+':'+dd
-  return datas
+  var datas = y+'-'+m+'-'+d+' '+h+':'+yy+':'+dd;
+  return datas;
 }
+//设置保存路径
+var storage = multer.diskStorage({
+  destination:function (req, file, cb) {
+    cb(null,'../image');
+  },
+  //上传文件命名，获取添加后缀名
+  filename:function (req, file, cb) {
+    var exts = file.originalname.split('.');
+    var ext = exts[exts.length-1];
+    var tmname = (new Date()).getTime()+parseInt(Math.random()*999);
+    cb(null,`${tmname}.${ext}`);
+  }
+});
+var upload = multer({ storage:storage });
+//single 图片的key值
+app.post('/api/upload',upload.single('image'), (req,res)=>{
+  console.log(req.files)
+  console.log(JSON.stringify(req.file))
+  var {size,mimetype,path} = req.file;
+  var types = ['jpg','jpeg','png','gif'];//类型
+  var tmpType = mimetype.split('/')[1];
+  if(size > 500000) {
+    return res.send({code:201,msg:'尺寸过大'});
+  }else if (types.indexOf(tmpType) == -1){
+    return res.send({code:202,msg:'数据出错'});
+  }else{
+    var url = `/image/${req.file.filename}`
+    res.send({code:200,msg:'提交成功',url:url});
+  }
+})
+
 //登录注册账号密码
 var UserPwd = mongoose.model('UserPwd',new mongoose.Schema({ name:String, password:String ,phone:Number, Email:String, age:Number,
-  gender:String, ZhiYe:String, Date:String,UserName:String}));
+  gender:String, ZhiYe:String, Date:String,UserName:String,token:String}));
 //登录验证
 app.post('/api/login',async (req,res)=>{
-  var naArr = { name:req.body.name, password:req.body.password };
+  var naArr = { name:req.body.name, password:req.body.password,token:req.body.token};
   var arr = { name : req.body.name};
+  var token = jwt.sign(naArr,jetToken); //生成token
   var search = await UserPwd.find(arr);
   UserPwd.find(naArr,function (err, data) {
     if (data.length){
-      res.send({ code:200, msg:'登录成功' ,search});
+      res.send({ code:200, msg:'登录成功' ,search,token:token});
     }else{
       res.send({ code:201, msg:'用户名不存在或密码错误' });
     }
@@ -149,6 +187,11 @@ app.post('/api/MoneySearch',async (req,res)=>{
 //消费删除
 app.delete('/api/deleteMoney/:id',async (req,res)=>{
   var del = await moneys.findByIdAndRemove(req.params.id)
+  res.send({status:true})
+})
+//用户删除
+app.delete('/api/delteUser/:id',async (req,res)=>{
+  var del = await UserPwd.findByIdAndRemove(req.params.id)
   res.send({status:true})
 })
 

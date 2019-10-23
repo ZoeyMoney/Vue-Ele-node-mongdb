@@ -24,10 +24,10 @@ VueRouter.prototype.push = function push(localtion,onResolve,onReject){
 ser.interceptors.request.use(config => {
   // 每次提交携带token，2019-9-6 携带token后台被拦截
   // console.log(sessionStorage.getItem('loginToken'))
-  /* if (sessionStorage.getItem('loginToken')) {
+   /*if (sessionStorage.getItem('loginToken')) {
     config.headers.Authorization = `${sessionStorage.getItem('loginToken')}`
-    console.log('123')
-  } */
+    // console.log('123')
+  }*/
   return config
 }, error => {
   return Promise.reject(error)

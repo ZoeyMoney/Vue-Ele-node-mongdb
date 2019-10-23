@@ -51,6 +51,7 @@
 
 <script>
   export default {
+    inject:['reload'],
     name: 'UserName',
     data(){
       return{
@@ -92,7 +93,16 @@
       },
     //  删除
       del(id){
-
+        this.axios.delete(`delteUser/${id}`).then(res=>{
+         if (res.status === 200){
+           if (res.data.status == true){
+             this.$message({message:'删除成功',type:'success'})
+             this.reload()
+           }else{
+             this.$message.error('删除失败');
+           }
+         }
+        })
       },
     //  修改
       add(id){

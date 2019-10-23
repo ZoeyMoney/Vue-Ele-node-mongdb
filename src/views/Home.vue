@@ -2,7 +2,7 @@
     <div class="Home">
       <el-container style="height: 100vh;">
         <el-aside width="200px" style="background-color: rgb(238, 241, 246)">
-          <el-menu :default-openeds="['1','3']" @select="handleSelect">
+          <el-menu :default-openeds="['1','2']" @select="handleSelect">
             <el-submenu index="1">
               <template slot="title">
                 <i class="el-icon-date"></i>

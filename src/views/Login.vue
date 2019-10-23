@@ -93,6 +93,7 @@ export default {
             sessionStorage.setItem(config.KEY.CACHE_LOGIN_NAME, this.sizeForm.name)
             sessionStorage.setItem('name', true)
             localStorage.UserName = JSON.stringify(res.data.search)
+            sessionStorage.setItem(config.KEY.CACHE_LOGIN_TOKEN,res.data.token)
             then.$store.commit('name', this.sizeForm.name)
             then.$router.push({ path: '/Home' })
           } else if (res.data.code == '201'){

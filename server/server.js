@@ -3,6 +3,7 @@ const app = express();
 var jwt = require('jsonwebtoken');
 var multer = require('multer');
 var path = require('path');
+var fs = require('fs');
 var router = express.Router();
 app.use(require('cors')());
 app.use(express.json());
@@ -41,36 +42,7 @@ function datam (data) {
   var datas = y+'-'+m+'-'+d+' '+h+':'+yy+':'+dd;
   return datas;
 }
-//设置保存路径
-var storage = multer.diskStorage({
-  destination:function (req, file, cb) {
-    cb(null,'../image');
-  },
-  //上传文件命名，获取添加后缀名
-  filename:function (req, file, cb) {
-    var exts = file.originalname.split('.');
-    var ext = exts[exts.length-1];
-    var tmname = (new Date()).getTime()+parseInt(Math.random()*999);
-    cb(null,`${tmname}.${ext}`);
-  }
-});
-var upload = multer({ storage:storage });
-//single 图片的key值
-app.post('/api/upload',upload.single('image'), (req,res)=>{
-  console.log(req.files)
-  console.log(JSON.stringify(req.file))
-  var {size,mimetype,path} = req.file;
-  var types = ['jpg','jpeg','png','gif'];//类型
-  var tmpType = mimetype.split('/')[1];
-  if(size > 500000) {
-    return res.send({code:201,msg:'尺寸过大'});
-  }else if (types.indexOf(tmpType) == -1){
-    return res.send({code:202,msg:'数据出错'});
-  }else{
-    var url = `/image/${req.file.filename}`
-    res.send({code:200,msg:'提交成功',url:url});
-  }
-})
+
 
 //登录注册账号密码
 var UserPwd = mongoose.model('UserPwd',new mongoose.Schema({ name:String, password:String ,phone:Number, Email:String, age:Number,
@@ -194,6 +166,67 @@ app.delete('/api/delteUser/:id',async (req,res)=>{
   var del = await UserPwd.findByIdAndRemove(req.params.id)
   res.send({status:true})
 })
+
+
+//图片
+//设置保存路径
+var storage = multer.diskStorage({
+  destination:function (req, file, cb) {
+    cb(null,'../image');
+  },
+  //上传文件命名，获取添加后缀名
+  filename:function (req, file, cb) {
+    var exts = file.originalname.split('.');
+    var ext = exts[exts.length-1];
+    var tmname = (new Date()).getTime()+parseInt(Math.random()*999);
+    cb(null,`${tmname}.${ext}`);
+  }
+});
+
+//图片录入
+var UserImage = mongoose.model('UserImage',mongoose.Schema({name:String,ImageName:String}))
+
+var upload = multer({ storage:storage });
+//single 图片的key值
+app.post('/api/upload',upload.array('image',9), (req,res)=>{
+  //多张图片上传
+  var array = req.files;
+  var arrSize = [];//大于500kb传进去
+  for (var index in array){
+    arrSize.push(array[index]);
+    if (arrSize.length>0){
+      var url = `/image/${array[index].filename}`;
+      res.send({code:200,msg:'上传成功',url:url});
+    }else{
+      res.send({code:201,msg:'上传失败'})
+    }
+  }
+//  单张图片上传
+  /*  var {size,mimetype,path} = req.file;
+    var types = ['jpg','jpeg','png','gif'];//类型
+    var tmpType = mimetype.split('/')[1];
+    if(size > 500000) {
+      return res.send({code:201,msg:'尺寸过大'});
+    }else if (types.indexOf(tmpType) == -1){
+      return res.send({code:202,msg:'数据出错'});
+    }else{
+      var url = `/image/${req.file.filename}`
+      res.send({code:200,msg:'提交成功',url:url});
+    }*/
+});
+//读取文件图片
+app.get('/api/uploadSearch', (req,res)=>{
+  var components = [];
+  var files = fs.readdirSync('../image');
+  files.forEach(function (item, index) {
+    components.push(item)
+  })
+  if (components.length>0){
+    res.send({code:200,msg:'查询成功',data:components})
+  }else{
+    res.send({code:201,msg:'查询失败'})
+  }
+});
 
 app.get('/',async (req,res)=>{
   res.send('index');

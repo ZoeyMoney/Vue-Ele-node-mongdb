@@ -1,26 +1,81 @@
-const express = require('express');
+const express = require('express');//接口
 const app = express();
-var jwt = require('jsonwebtoken');
-var multer = require('multer');
-var path = require('path');
-var fs = require('fs');
-var router = express.Router();
-app.use(require('cors')());
-app.use(express.json());
+var jwt = require('jsonwebtoken');//加密
+var multer = require('multer'); //图片存放
+var path = require('path'); //路径
+var fs = require('fs'); //文件操作
+var mysql = require('mysql');//数据库
+app.use(require('cors')());//跨域
+app.use(express.json());//接收json格式
 //在服务器端建立uploads文件夹用来接受上传的文件，并将uploads文件夹托管为静态文件
 app.use('/image',express.static(path.join(__dirname,'../image')));
-const mongoose = require('mongoose');
-mongoose.connect("mongodb://localhost/Backstage",{useNewUrlParser:true,useUnifiedTopology:true,useFindAndModify:true});
+app.use('/netdisc',express.static(path.join(__dirname,'../netdisc')));
+//图片
+//设置保存路径
+var storage = multer.diskStorage({
+  destination:function (req, file, cb) {
+    cb(null,'../image');
+  },
+  //上传文件命名，获取添加后缀名
+  filename:function (req, file, cb) {
+    var exts = file.originalname.split('.');
+    var ext = exts[exts.length-1];
+    var tmname = (new Date()).getTime()+parseInt(Math.random()*999);
+    cb(null,`${tmname}.${ext}`);
+  }
+});
+var upload = multer({ storage:storage });
+//网盘
+var storageNet = multer.diskStorage({
+  destination:function (req, file, cb) {
+    cb(null,'../netdisc');
+  },
+  filename:function (req, file, cb) {
+    cb(null,`${file.originalname}`);
+  }
+});
+var uploadNet = multer({ storage:storageNet });
+// const mongoose = require('mongoose');
+// mongoose.connect("mongodb://127.0.0.1/Backstage",{useNewUrlParser:true,useUnifiedTopology:true,useFindAndModify:true});
+// mongoose.connect("mongodb://localhost/Backstage",{useNewUrlParser:true,useUnifiedTopology:true,useFindAndModify:true});
+
+
+var db = mysql.createConnection({
+  host:'localhost',
+  port:'3306',
+  user:'root',
+  password:'root',
+  database:'backstage'
+});
+db.connect();
+//查询
+// var sql = 'SELECT * FROM userpwd';
+//增
+// var addSql = "INSERT INTO xxxxx(name,pwd,time) VALUE('bbb','ccc')";
+/*db.query(sql,function (err, res) {
+  if (err){
+    console.log('err')
+  }else{
+    console.log(res)
+  }
+})*/
+/*connection.query(addSql,function (err, res) {
+  if (err){
+    console.log('err')
+  }else{
+    console.log(res)
+  }
+})*/
+
 app.all('*', function(req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
+  res.header('Access-Control-Allow-Credentials', true);
   res.header("Access-Control-Allow-Headers", "X-Requested-With");
   res.header("Access-Control-Allow-Methods","PUT,POST,GET,DELETE,OPTIONS");
   res.header("X-Powered-By",' 3.2.1');
   res.header("Content-Type", "application/json;charset=utf-8");
   next();
 });
-//token
-var jetToken = '123456';
 //封装时间 年月日
 function data (da) {
   var datas = new Date(da);
@@ -42,59 +97,96 @@ function datam (data) {
   var datas = y+'-'+m+'-'+d+' '+h+':'+yy+':'+dd;
   return datas;
 }
-
-
 //登录注册账号密码
-var UserPwd = mongoose.model('UserPwd',new mongoose.Schema({ name:String, password:String ,phone:Number, Email:String, age:Number,
-  gender:String, ZhiYe:String, Date:String,UserName:String,token:String}));
 //登录验证
-app.post('/api/login',async (req,res)=>{
-  var naArr = { name:req.body.name, password:req.body.password,token:req.body.token};
-  var arr = { name : req.body.name};
-  var token = jwt.sign(naArr,jetToken); //生成token
-  var search = await UserPwd.find(arr);
-  UserPwd.find(naArr,function (err, data) {
-    if (data.length){
-      res.send({ code:200, msg:'登录成功' ,search,token:token});
-    }else{
+app.post('/api/login',(req,res)=>{
+  var {name,password,token} = req.body;
+  var token = jwt.sign(name,password); //生成token
+  var sql = `select * from userpwd where name = '${name}' and pwd = '${password}'`;
+  db.query(sql,function (err, result) {
+    if (err || result.length == 0){
       res.send({ code:201, msg:'用户名不存在或密码错误' });
+    }else{
+      res.send({ code:200, msg:'登录成功', search:result,token:token});
     }
   });
 });
 //注册
-app.post('/api/rdst',async (req,res)=>{
-  var dates = req.body.Date;
-  var arr = {
-    name : req.body.name,
-    password : req.body.password,
-    phone : req.body.phone,
-    Email : req.body.Email,
-    age : req.body.age,
-    gender : req.body.gender,
-    ZhiYe : req.body.ZhiYe,
-    UserName:req.body.UserName,
-    Date:data(dates)
-  }
-  var arg = {name:arr.name}
-  UserPwd.find(arg,async function (err, data) {
-    if (data.length != ''){
+app.post('/api/rdst',(req,res)=>{
+  var {name,password,Email,zhiye} = req.body;
+  var findSql = `select * from userpwd where name='${name}'`;
+  db.query(findSql,function (err, result) {
+    if (result.length >0){
       res.send({ code:201, msg:'已被注册' });
     }else{
-      await UserPwd.create(arr);
-      res.send({code:200,msg:'注册成功'});
+      var addSql = "insert into userpwd(name,pwd) values('"+name+"','"+password+"')";
+      db.query(addSql,function (err, resultadd) {
+        if (!err){
+          res.send({code:200,msg:'注册成功'});
+        }else{
+          res.send({ code:202, msg:'注册失败' });
+        }
+      });
     }
   });
 });
 //修改个人信息
-app.post('/api/UserNameUpdate/:id',async (req,res)=>{
-  var user = await UserPwd.findByIdAndUpdate(req.params.id,req.body);
-  res.send({status: true});
+app.post('/api/UserNameUpdate',(req,res)=>{
+  var {name,gender,age,phone,Email,ZhiYe,user_id} = req.body;
+  ZhiYe = (ZhiYe =='' || ZhiYe==null || ZhiYe==undefined)?'无':ZhiYe;
+  gender = (gender =='' || gender==null || gender==undefined)?'无':gender;
+  age = (age =='' || age==null || age==undefined)?'无':age;
+  phone = (phone =='' || phone==null || phone==undefined)?'无':phone;
+  Email = (Email =='' || Email==null || Email==undefined)?'无':Email;
+  var userpwdSql = `update userpwd set name='${name}' where user_id='${user_id}'`;
+  db.query(userpwdSql,function (err, result) {
+    if (!err){
+      var usernamesSql = `update usernames set
+          gender='${gender}',age='${age}',phone=${phone}
+          ,Email='${Email}',zhiye='${ZhiYe}' where 
+           user_id='${user_id}'`;
+      db.query(usernamesSql,function (err, userResult) {
+        if (!err){
+          res.send({ status: true });
+        }else{
+          res.send({msg:'修改失败'});
+        }
+      });
+    }else{
+      console.log('err');
+    }
+  })
+  // var updataSql = "update userpwd set name='"+name+"' where user_id='"+user_id+"'"; //修改userpwd表
+  // var findSql = `select * from usernames where user_id='${user_id}'`; //查询usernames表
+  // var updataSqlNames = `update usernames set gender='${gender}',age='${age}',phone='${phone}',Email='${Email}',zhiye='${zhiye}' where user_id='${user_id}'`;
+  // var addSql = `insert into usernames(phone,Email,age,gender,zhiye,user_id) values('${phone}','${Email}','${age}','${gender}','${zhiye}','${user_id}')`;
+});
+
+//个人信息查询
+app.post('/api/persone',(req,res)=>{
+  var user_id = req.body;
+  var selectSql = `select * from userpwd inner join usernames on userpwd.user_id = '${user_id.user_id}' where usernames.user_id='${user_id.user_id}'`;
+  db.query(selectSql,function (err, result) {
+    if (!err){
+      res.send({code:200,msg:'查询成功',data:result});
+    }else{
+      res.send({code:201,msg:'程序出错'});
+    }
+  });
 });
 
 //个人反馈
-var UserFeeadback = mongoose.model('UserFdbck',new mongoose.Schema({ textarea:String, User:String, Email:String, phone:Number, date:String }))
-app.post('/api/TextFabck',async (req,res)=>{
-  var User = req.body.User;
+app.post('/api/TextFabck',(req,res)=>{
+  var {user_id,textarea} = req.body;
+  var addSql = `insert into userfdbck(text,user_id) values ('${textarea}','${user_id}')`;
+  db.query(addSql,function (err, result) {
+    if (!err){
+      res.send({ code:200, msg:'提交成功' });
+    }else{
+      res.send({ code:201, msg:'提交失败' });
+    }
+  });
+  /*var User = req.body.User;
   var phone = req.body.phone;
   var textarea = req.body.textarea;
   var Email = req.body.Email;
@@ -104,102 +196,141 @@ app.post('/api/TextFabck',async (req,res)=>{
     if (data.length){
       res.send({ code:200, msg:'提交成功' });
     }else{
-      res.send({ code:201, msg:'提交失败' });
+       res.send({ code:200, msg:'提交成功' });
+    }
+  });*/
+});
+//个人反馈查询
+app.get('/api/FabckInquire',(req,res)=>{
+  var findSql = `select * from userpwd,usernames,userfdbck where userpwd.user_id=usernames.user_id and usernames.user_id = userfdbck.user_id`;
+  db.query(findSql,function (err, result) {
+    if (!err){
+      res.send({ code:200, msg:'查询成功',result});
+    }else{
+      res.send({ code:201, msg:'查询失败' });
+    }
+  });
+  /*var quire = await UserFeeadback.find();
+  res.send(quire);*/
+});
+
+//删除反馈信息条
+app.post('/api/del',(req,res)=>{
+  var obj = req.body;
+  var deleteSql = `delete from userfdbck where id='${obj.id}'`;
+  //联级表删除
+  //var deleteSql = `delete usernames,userfdbck from usernames,userfdbck where usernames.user_id='${id.user_id}' and userfdbck.user_id='${id.user_id}'`;
+  db.query(deleteSql,function (err, result) {
+    if (!err){
+      res.send({status:true});
+    }else{
+      res.send({ code:201, msg:'删除失败'});
+    }
+  });
+  /*await UserFeeadback.findByIdAndRemove(req.params.id);
+  res.send({status:true});*/
+});
+//查询个人信息
+app.post('/api/UserNameSearch',(req,res)=>{
+  var pageNum = req.body.page || 1;
+  var pageSize = req.body.pageSize || 8;
+  var curen = (pageNum - 1) * pageSize;
+  var search = `select * from userpwd left join usernames on userpwd.user_id=usernames.user_id limit ${curen},${pageSize}`;
+  var len = `select * from userpwd`;
+  db.query(search,function (err, result) {
+    if (!err){
+      db.query(len,function (err, lenResult) {
+        if (!err){
+          res.send({search:result,total:lenResult.length});
+        }
+      });
     }
   });
 });
-//个人反馈查询
-app.get('/api/FabckInquire',async (req,res)=>{
-  var quire = await UserFeeadback.find();
-  res.send(quire);
-});
-
-//删除
-app.delete('/api/del/:id',async (req,res)=>{
-  await UserFeeadback.findByIdAndRemove(req.params.id);
-  res.send({status:true});
-});
-//查询个人信息
-app.post('/api/UserNameSearch',async (req,res)=>{
-  var pageSize = req.body.pageSize || 8;
-  var page = req.body.page || 1;
-  var total = await UserPwd.find();
-  var totalLength = total.length;
-  var search = await UserPwd.find().limit(Number(pageSize)).skip(Number((page - 1) * pageSize));
-  res.send({search:search,total:totalLength});
-});
 //消费
-var moneys = mongoose.model('money',mongoose.Schema({ name:String, Date:String, code:String, text:String, money: Number,DateY:String}));
 //录入消费数据
-app.post('/api/money',async (req,res)=>{
-    var name = req.body.name;
-    var dates = datam(req.body.Date);
-    var code = req.body.code;
-    var text = req.body.text;
-    var money = req.body.money;
-    var DateY = data(req.body.Date)
-  var money = await moneys.create({name:name,Date:dates,code:code,text:text,money:money,DateY:DateY});
-  moneys.find(money,async (err,data)=>{
-    if (data.length) {
+app.post('/api/money',(req,res)=>{
+  var {name,date,code,text,money} = req.body;
+  var findSql = `insert into money(name,Data,DateY,code,text,money) values('${name}','${date}','${data(date)}','${code}','${text}','${money}')`;
+  db.query(findSql,function (err, result) {
+    if (!err){
       res.send({code:200,msg:'录入成功'});
     }else{
       res.send({code:201,msg:'录入失败'});
     }
-  })
+  });
 });
 //查询消费
-app.post('/api/MoneySearch',async (req,res)=>{
-  var pageSize = req.body.pageSize || 8; //设置默认值
-  var page = req.body.page || 1; //默认第一页
-  var total = await moneys.find() //查询多少条数据
-  var totalLength = total.length  //统计多少条数据
-  var search = await moneys.find().limit(Number(pageSize)).skip(Number((page-1)*pageSize));
-  res.send({search:search,total:totalLength})
+app.post('/api/MoneySearch',(req,res)=>{
+  var pageSize = req.body.pageSize || 8;
+  var pageNum = req.body.page || 1;
+  var curen = (pageNum - 1) * pageSize;
+  var search = `select name,data,DateY,code,text,money,id from money limit ${curen},${pageSize}`;
+  var len = `select name,data,DateY,code,text,money,id from money`;
+  db.query(search,function (err, result) {
+    if (!err){
+      db.query(len,function (err, lenResult) {
+        if (!err){
+          res.send({search:result,total:lenResult.length});
+        }else {
+          res.send({code:201,msg:'查询失败'});
+        }
+      });
+    }
+  });
 });
 //消费删除
-app.delete('/api/deleteMoney/:id',async (req,res)=>{
-  var del = await moneys.findByIdAndRemove(req.params.id)
-  res.send({status:true})
-})
-//用户删除
-app.delete('/api/delteUser/:id',async (req,res)=>{
-  var del = await UserPwd.findByIdAndRemove(req.params.id)
-  res.send({status:true})
-})
-
-
-//图片
-//设置保存路径
-var storage = multer.diskStorage({
-  destination:function (req, file, cb) {
-    cb(null,'../image');
-  },
-  //上传文件命名，获取添加后缀名
-  filename:function (req, file, cb) {
-    var exts = file.originalname.split('.');
-    var ext = exts[exts.length-1];
-    var tmname = (new Date()).getTime()+parseInt(Math.random()*999);
-    cb(null,`${tmname}.${ext}`);
-  }
+app.post('/api/deleteMoney',(req,res)=>{
+  var {name,data,DateY,code,text,money,id} = req.body
+  var deleteSql = `delete from money where id=${id}`;
+  db.query(deleteSql,function (err, result) {
+    if (!err){
+      res.send({status:true})
+    }
+  });
+  /*var del = await moneys.findByIdAndRemove(req.params.id)
+  res.send({status:true})*/
 });
-
+//用户删除
+app.post('/api/delteUser/:id',(req,res)=>{
+  var id = req.params.id;
+  var deleteSql = `delete userpwd,usernames from userpwd,usernames where userpwd.user_id=${id} and usernames.user_id=${id}`;
+  db.query(deleteSql,function (err, result) {
+    if (!err){
+      res.send({status:true});
+    }else{
+      res.send({msg:'错误'});
+    }
+  });
+});
 //图片录入
-var UserImage = mongoose.model('UserImage',mongoose.Schema({name:String,ImageName:String}))
-
-var upload = multer({ storage:storage });
 //single 图片的key值
-app.post('/api/upload',upload.array('image',9), (req,res)=>{
+app.post('/api/upload',upload.array('image',9),async (req,res)=>{
   //多张图片上传
   var array = req.files;
+  var datas = JSON.parse(req.body.data)
   var arrSize = [];//大于500kb传进去
+  var imageArr = [];//图片命名储存
   for (var index in array){
     arrSize.push(array[index]);
-    if (arrSize.length>0){
-      var url = `/image/${array[index].filename}`;
-      res.send({code:200,msg:'上传成功',url:url});
-    }else{
-      res.send({code:201,msg:'上传失败'})
-    }
+    imageArr.push('http://localhost:8088/image/'+array[index].filename)
+  }
+  if (arrSize.length>0){
+    var url = `${imageArr}`;
+    var addSql = `insert into user_image(data_image,user_id,Data) values ('${JSON.stringify(imageArr)}','${datas.name}','${data(datas.data)}')`;
+    db.query(addSql,function (err, result) {
+      if (!err){
+        res.send({code:200,msg:'上传成功',url:url});
+      }
+    });
+    /*var cretd = await UserImage.create({name:datas.name,ImageName:JSON.stringify(imageArr),datam:datam(datas.data),date:data(datas.data)});
+    UserImage.find(cretd,async (err,data)=>{
+      if (data.length){
+         res.send({code:200,msg:'上传成功',url:url});
+      }
+    });*/
+  }else{
+         res.send({code:201,msg:'上传失败'});
   }
 //  单张图片上传
   /*  var {size,mimetype,path} = req.file;
@@ -215,17 +346,103 @@ app.post('/api/upload',upload.array('image',9), (req,res)=>{
     }*/
 });
 //读取文件图片
-app.get('/api/uploadSearch', (req,res)=>{
-  var components = [];
-  var files = fs.readdirSync('../image');
-  files.forEach(function (item, index) {
-    components.push(item)
-  })
-  if (components.length>0){
-    res.send({code:200,msg:'查询成功',data:components})
-  }else{
-    res.send({code:201,msg:'查询失败'})
+app.post('/api/uploadSearch',(req,res)=>{
+  //查看本机静态所有图片
+  var findSql = `select * from userpwd,user_image where userpwd.user_id=user_image.user_id`;
+  db.query(findSql,function (err, result) {
+    if (!err){
+      var arr = result;
+      arr.map(function (item) {
+        item.data_image = JSON.parse(item.data_image);
+        item.Data = data(item.Data);
+      });
+      res.send({code:200,msg:'查询成功',data:arr});
+    }else{
+      res.send({code:201,msg:'暂无数据'});
+    }
+  });
+});
+//image_all删除
+app.post('/api/imageAllDel',async (req,res)=>{
+  var data = req.body;
+  var str = JSON.parse(data.ImageName);  //转数组
+  str.forEach((item)=>{
+    fs.unlink(`../image/${item}`,async (err)=>{
+      if (err){
+        console.log('err')
+      }
+    });
+  });
+  var components = [];  //本地图片
+  var list = [];//匹配到的图片
+    var files = fs.readdirSync('../image');
+    files.forEach(function (item, index) {
+      components.push(item);
+    });
+   for (var index in components){
+     for (var i in str){
+       if (components[index] == str[i]){
+         list.push(components[i])
+       }
+     }
+   }
+   var deleteSql = `delete from user_image where id=${data.id}`;
+   db.query(deleteSql,function (err, result) {
+     if (!err){
+       if (list.length>0){
+         res.send({code:200,msg:'删除成功'})
+       }else{
+         res.send({code:201,msg:'删除失败'})
+       }
+     }
+   });
+});
+//网盘录入
+app.post('/api/netdisc',uploadNet.array('netdisc',9),async (req,res)=>{
+  var file = req.files;
+  var datas = JSON.parse(req.body.netdataName);
+  for (var index in file){
+    var addSql = `insert into user_netdisc(kb,file_href,net_find,user_id,Date) values ('${parseInt(file[index].size / 1024)}','${file[index].filename}','${"http://localhost:8088/netdisc/"+file[index].filename}','${datas.name}','${data(datas.data)}')`;
+   await db.query(addSql,async function (err, result) {
+      if (!err){
+        res.send({code:200,msg:'保存成功'});
+      }else{
+        res.send({code:201,msg:'保存失败'});
+      }
+    });
   }
+});
+//网盘查询
+app.get('/api/netFind',(req,res)=>{
+  var find = `select * from userpwd,user_netdisc where userpwd.user_id=user_netdisc.user_id`;
+  db.query(find,function (err, result) {
+    if (!err){
+      result.map(function (item) {
+        item.Date = data(item.Date);
+      });
+      res.send({code:200,data:result});
+    }else{
+      res.send(({code:201,msg:'查询失败'}));
+    }
+  });
+});
+//网盘删除
+app.post('/api/netDel',(req,res)=>{
+  var {id,file_href} = req.body;
+  var deleteSql = `delete from user_netdisc where id=${id}`;
+  db.query(deleteSql,function (err, result) {
+    if (!err){
+      fs.unlink(`../netdisc/${file_href}`,(err)=>{
+        if (err){
+          res.send({code:201,msg:'删除失败'});
+        }else{
+          res.send({code:200,msg:'删除成功'});
+        }
+      });
+    }else{
+      res.send({code:201,msg:'数据异常'});
+    }
+  });
 });
 
 app.get('/',async (req,res)=>{

@@ -10,6 +10,10 @@
           <el-form-item label="密码">
             <el-input v-model="sizeForm.password" placeholder="请输入密码" show-password></el-input>
           </el-form-item>
+          <el-form-item label="验证码">
+            <el-input v-model="sizeForm.code" style="width: 111px" placeholder="请输入验证码"></el-input>
+            <el-tag style="margin-left: 10px" @click="rand">{{randmon}}</el-tag>
+          </el-form-item>
           <el-form-item size="large">
             <el-button type="info" @click="onSubmit">登录</el-button>
           </el-form-item>
@@ -26,23 +30,9 @@
           <el-form-item label="密码">
             <el-input v-model="sizeFormDate.password" placeholder="请输入密码" show-password></el-input>
           </el-form-item>
-          <el-form-item label="姓名">
-            <el-input v-model="sizeFormDate.UserName" placeholder="请输入姓名"></el-input>
-          </el-form-item>
-          <el-form-item label="手机">
-            <el-input v-model="sizeFormDate.phone" placeholder="请输入手机"></el-input>
-          </el-form-item>
-          <el-form-item label="邮箱">
-            <el-input v-model="sizeFormDate.Email" placeholder="请输入邮箱"></el-input>
-          </el-form-item>
-          <el-form-item label="年龄">
-            <el-input v-model="sizeFormDate.age" placeholder="请输入年龄"></el-input>
-          </el-form-item>
-          <el-form-item label="性别">
-            <el-input v-model="sizeFormDate.gender" placeholder="请输入性别"></el-input>
-          </el-form-item>
-          <el-form-item label="职业">
-            <el-input v-model="sizeFormDate.ZhiYe" placeholder="请输入职业"></el-input>
+          <el-form-item label="验证码">
+            <el-input v-model="sizeForm.code" style="width: 111px" placeholder="请输入验证码"></el-input>
+            <el-tag style="margin-left: 10px" @click="rand">{{randmon}}</el-tag>
           </el-form-item>
           <el-form-item size="large">
             <el-button type="info" @click="onSubmitadd">注册</el-button>
@@ -60,82 +50,144 @@
 
 <script>
 import config from '../js/index'
+import RegExo from '../js/RegExp'
 export default {
-  inject:['reload'],
+  inject: ['reload'],
   name: 'Login',
   data () {
     return {
-      sizeForm: { name: '', password: '' },
-      DateName:[{text:'注册账号'}, {text:'找回密码'}],
-      sizeFormIf:true,
-      sizeGo:false,
-      sizeFormDate:{ name:'', password: '', phone:'', Email:'', age:'', gender:'', ZhiYe:'' ,Date:new Date(),UserName:''},  //注册
-      UserName:[{text:'登录'}, {text:'找回密码'}]
+      sizeForm: { name: '', password: '', code: '' },
+      randmon: '',
+      DateName: [{ text: '注册账号' }, { text: '找回密码' }],
+      sizeFormIf: true,
+      sizeGo: false,
+      sizeFormDate: { name: '', password: '' }, // 注册
+      UserName: [{ text: '登录' }, { text: '找回密码' }]
     }
   },
   methods: {
-    //登录
+    // 登录
     onSubmit () {
       var then = this
       var _true = true
+      if (RegExo.test(this.sizeForm.name) || RegExo.test(this.sizeForm.password)) {
+        this.$message.error('账号或密码错误')
+        _true = false
+        return false
+      }
       if (this.sizeForm.name === '' || this.sizeForm.password === '') {
         this.$message.error('账号或密码不能为空')
+        this.randnumber()
+        _true = false
+        return false
+      }
+      if (this.sizeForm.code === '') {
+        this.$message.error('验证码不能为空')
+        this.randnumber()
+        this.sizeForm.password = ''
+        _true = false
+        return false
+      }
+      if (this.sizeForm.code.toUpperCase() !== this.randmon) {
+        this.$message.error('验证码错误')
+        this.randnumber()
         _true = false
         return false
       }
       this.axios.post('login', this.sizeForm).then(res => {
-        if (res.status === 200){
-          if (res.data.code == '200'){
+        if (res.status === 200) {
+          if (res.data.code == '200') {
+            this.$message({ message: res.data.msg, type: 'success' })
+            var user_id = ''
+            for (var index in res.data.search) {
+              user_id += res.data.search[index].user_id
+            }
+            this.randnumber()
+            sessionStorage.setItem(config.KEY.CACHE_LOGIN_NAME, this.sizeForm.name)
+            sessionStorage.setItem('name', true)
+            sessionStorage.setItem(config.KEY.CACHE_USER_ID, user_id)
+            sessionStorage.setItem('user_id', true)
+            localStorage.UserName = JSON.stringify(res.data.search)
+            sessionStorage.setItem(config.KEY.CACHE_LOGIN_TOKEN, res.data.token)
+            then.$store.commit('name', this.sizeForm.name)
+            then.$store.commit('user_id', user_id)
+            then.$router.push({ path: '/Home' })
+          } else if (res.data.code == '201') {
+            this.$message.error(res.data.msg)
+            this.randnumber()
+          }
+        }
+      }).catch(err => {
+        console.log(err)
+      })
+    },
+    // 注册
+    onSubmitadd () {
+      var _true = true
+      var patt = new RegExp(/\s+/g)
+      if (patt.test(this.sizeFormDate.name) || patt.test(this.sizeFormDate.password) || patt.test(this.sizeFormDate.phone) ||
+        patt.test(this.sizeFormDate.Email) || patt.test(this.sizeFormDate.age) || patt.test(this.sizeFormDate.gender)) {
+        this.$message.error('其中格式有误')
+        _true = false
+        return false
+      }
+      if (this.sizeFormDate.name == '') {
+        this.$message.error('用户名不能为空')
+        _true = false
+        return false
+      }
+      if (this.sizeFormDate.password == '') {
+        this.$message.error('密码不能为空')
+        _true = false
+        return false
+      }
+      this.axios.post('rdst', this.sizeFormDate).then(res => {
+        if (res.status === 200) {
+          if (res.data.code == '200') {
             this.$message({
               message: res.data.msg,
               type: 'success'
             })
-            sessionStorage.setItem(config.KEY.CACHE_LOGIN_NAME, this.sizeForm.name)
-            sessionStorage.setItem('name', true)
-            localStorage.UserName = JSON.stringify(res.data.search)
-            sessionStorage.setItem(config.KEY.CACHE_LOGIN_TOKEN,res.data.token)
-            then.$store.commit('name', this.sizeForm.name)
-            then.$router.push({ path: '/Home' })
-          } else if (res.data.code == '201'){
-            this.$message.error(res.data.msg)
-          }
-        }
-      }).catch(err=>{
-        console.log(err)
-      })
-    },
-    //注册
-    onSubmitadd(){
-      this.axios.post('rdst',this.sizeFormDate).then(res=>{
-        if (res.status === 200) {
-          if (res.data.code == '200'){
-            this.$message({
-              message: res.data.msg,
-              type: 'success'
-            });
             this.reload()
-          }else if (res.data.code == '201'){
+          } else if (res.data.code == '201') {
             this.$message.error(res.data.msg)
           }
         }
       })
     },
-    infoPwd(val){
-      if (val == '注册账号'){
+    infoPwd (val) {
+      if (val == '注册账号') {
         this.sizeFormIf = false
         this.sizeGo = true
+        this.randnumber()
       }
     },
-    infoPwds(val){
-      if (val == '登录'){
+    infoPwds (val) {
+      if (val == '登录') {
         this.sizeFormIf = true
         this.sizeGo = false
+        this.randnumber()
       }
+    },
+    //  随机数
+    randnumber () {
+      var len = 4
+      var txt = ''
+      var code = new Array(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z')
+      for (var i = 0; i < len; i++) {
+        var ssc = Math.floor(Math.random() * 36)
+        txt += code[ssc]
+      }
+      this.randmon = txt
+    },
+    //  局部刷新
+    rand () {
+      this.randnumber()
     }
   },
   created () {
-
-  },
+    this.randnumber()
+  }
 }
 </script>
 

@@ -1,15 +1,17 @@
 <template>
   <div>
     <el-table :data="tableData" style="width: 100%" :row-class-name="tableRowClassName">
-      <el-table-column prop="User" label="名字" width="180"></el-table-column>
+      <el-table-column prop="name" label="名字" width="180"></el-table-column>
       <el-table-column prop="phone" label="联系方式" width="180"></el-table-column>
       <el-table-column prop="Email" label="邮箱" width="200"></el-table-column>
-      <el-table-column prop="textarea" label="反馈内容" width="380"></el-table-column>
-      <el-table-column prop="date" label="日期" width="180"></el-table-column>
+      <el-table-column prop="text" label="反馈内容" width="380"></el-table-column>
+      <el-table-column label="日期" width="180">
+        <template slot-scope="scope">{{ data(scope.row.data) }}</template>
+      </el-table-column>
       <el-table-column fixed="right" label="操作" width="180">
         <template slot-scope="scope">
           <el-button @click="handleClick(scope.row)" type="text" size="small">查看</el-button>
-          <el-button @click.native.prevent="deleteRow(scope.row._id)" type="text" size="small">删除</el-button>
+          <el-button @click.native.prevent="deleteRow(scope.row.id)" type="text" size="small">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -33,63 +35,72 @@
 </template>
 
 <script>
-  export default {
-    name:'Feedback',
-    inject:['reload'],
-    data() {
-      return {
-        tableData:[],
-        box_input:false,
-        formInline: {
-          phone: '',
-          textarea:'',
-          Email: '',
-          User:'',
-          date:''
-        }
+import config from '../js/index'
+export default {
+  name: 'Feedback',
+  inject: ['reload'],
+  data () {
+    return {
+      tableData: [],
+      box_input: false,
+      formInline: {
+        phone: '',
+        text: '',
+        Email: '',
+        name: '',
+        data: ''
       }
-    },
-    methods: {
-      tableRowClassName({row, rowIndex}) {
-        if (rowIndex === 1) {
-          return 'warning-row';
-        } else if (rowIndex === 3) {
-          return 'success-row';
-        }
-        return '';
-      },
-      //查询信息
-      quire(){
-        this.axios.get('FabckInquire').then(res=>{
-          this.tableData = res.data
-        })
-      },
-    //  移除
-      deleteRow(id) {
-        this.axios.delete(`del/${id}`).then(res=>{
-          if (res.status ===200){
-            if (res.data.status == true){
-              this.$message({
-                message: '删除成功',
-                type: 'success'
-              });
-              this.reload()
-            }else{
-              this.$message.error('删除失败');
-            }
-          }
-        })
-      },
-    //  查看
-      handleClick(row) {
-        this.box_input = true;
-        this.formInline = row
-      }
-    },
-    created () {
-      this.quire()
     }
+  },
+  methods: {
+    tableRowClassName ({ row, rowIndex }) {
+      if (rowIndex === 1) {
+        return 'warning-row'
+      } else if (rowIndex === 3) {
+        return 'success-row'
+      }
+      return ''
+    },
+    // 查询信息
+    quire () {
+      this.axios.get('FabckInquire').then(res => {
+        this.tableData = res.data.result
+      })
+    },
+    //  移除
+    deleteRow (id) {
+      this.axios.post('del', { id: id }).then(res => {
+        if (res.status === 200) {
+          if (res.data.status == true) {
+            this.$message({
+              message: '删除成功',
+              type: 'success'
+            })
+            this.reload()
+          } else {
+            this.$message.error('删除失败')
+          }
+        }
+      })
+    },
+    //  查看
+    handleClick (row) {
+      this.box_input = true
+      this.formInline = row
+    },
+    //  date
+    data (val) {
+      var data = new Date(val)
+      var y = data.getFullYear()
+      var m = data.getMonth() + 1
+      var d = data.getDate()
+      return y + '-' + m + '-' + d
+    }
+  },
+  created () {
+    this.quire()
   }
+}
 </script>
 
 <style scoped>

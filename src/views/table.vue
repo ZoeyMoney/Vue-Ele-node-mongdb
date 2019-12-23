@@ -2,7 +2,7 @@
     <div class="tables">
       <el-form :inline="true" :model="formInline" size="small" class="demo-form-inline">
         <el-form-item label="日期">
-          <el-date-picker v-model="formInline.Date" type="datetime" placeholder="选择日期时间"></el-date-picker>
+          <el-date-picker v-model="formInline.date" type="datetime" placeholder="选择日期时间"></el-date-picker>
         </el-form-item>
         <el-form-item label="姓名">
           <el-input v-model="formInline.name" placeholder="姓名"></el-input>
@@ -35,15 +35,17 @@
           </p>
         </div>
       </div>
-        <el-table :data="tableData.filter(name=>!value || name.Date.toLowerCase().includes(value.toLowerCase()))" border style="width: 100%" :row-class-name="tableRowClassName">
-          <el-table-column fixed prop="Date" label="日期" width="200"></el-table-column>
+        <el-table :data="tableData.filter(name=>!value || name.DateY.toLowerCase().includes(value.toLowerCase()))" border style="width: 100%" :row-class-name="tableRowClassName">
+          <el-table-column fixed label="日期" width="200">
+            <template slot-scope="scope">{{ scope.row.DateY }}</template>
+          </el-table-column>
           <el-table-column prop="name" label="姓名" width="120"></el-table-column>
           <el-table-column prop="money" label="金钱" width="120"></el-table-column>
           <el-table-column prop="text" label="理由" width="300"></el-table-column>
           <el-table-column prop="code" label="状态" width="120"></el-table-column>
           <el-table-column label="操作">
             <template slot-scope="scope">
-              <el-button size="mini" type="danger" @click="handleDelete(scope.$index, scope.row._id)">删除</el-button>
+              <el-button size="mini" type="danger" @click="handleDelete(scope.$index, scope.row)">删除</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -60,183 +62,192 @@
 </template>
 
 <script>
-  export default {
-    inject:['reload'],
-    name: 'tables',
-    data(){
-      return{
-        tableData: [],
-        formInline: {
-          name: '',
-          text: '',
-          Date:'',
-          code:'',
-          money:'',
-        },
-        listCode:[
-          {label:'差'},
-          {label:'良好'},
-          {label:'优'},
-          {label:'过高'},
-        ],
-        options: '',
-        value: '',
-        moneyAll:0,
-        backup:0,
+export default {
+  inject: ['reload'],
+  name: 'tables',
+  data () {
+    return {
+      tableData: [],
+      formInline: {
+        name: '',
+        text: '',
+        date: '',
+        code: '',
+        money: '',
+        DateY: ''
+      },
+      listCode: [
+        { label: '差' },
+        { label: '良好' },
+        { label: '优' },
+        { label: '过高' }
+      ],
+      options: '',
+      value: '',
+      moneyAll: 0,
+      backup: 0,
       //  分页
-        currentPage1: 1,
-        pageTotal:0,
-      }
+      currentPage1: 1,
+      pageTotal: 0
+    }
+  },
+  methods: {
+    handleSizeChange (val) {
+      console.log(`每页 ${val} 条`)
     },
-    methods: {
-      handleSizeChange(val) {
-        console.log(`每页 ${val} 条`);
-      },
-      handleCurrentChange(val) {
-        var pages = {page:val,pageSize:8};
-        this.axios.post('MoneySearch',pages).then(res=>{
-          this.tableData = res.data.search
+    handleCurrentChange (val) {
+      var pages = { page: val, pageSize: 8 }
+      this.axios.post('MoneySearch', pages).then(res => {
+        this.tableData = res.data.search
+      })
+    },
+    // 删除
+    handleDelete (index, row) {
+      this.axios.post('deleteMoney', row).then(res => {
+        if (res.status == 200) {
+          if (res.data.status == true) {
+            this.$message({ message: '删除成功', type: 'success' })
+            this.reload()
+          } else {
+            this.$message.error('名字不能为空')
+          }
+        }
+      })
+    },
+    // 保存
+    onSubmit () {
+      var _true = true
+      var nameReg = /^[\u4E00-\u9FA5]{2,10}$/ // 验证人的名字
+      var nuber = /^\d+(\.\d+)?$/ // 验证数字
+      // 提交时如果时间为空则默认提交时的时间
+      if (this.formInline.date == '') {
+        this.formInline.Date = new Date()
+      }
+      // 名字
+      if (this.formInline.name == '') {
+        this.$message.error('名字不能为空')
+        _true = false
+        return false
+      }
+      if (!nameReg.test(this.formInline.name)) {
+        this.$message.error('名字格式错误')
+        _true = false
+        return false
+      }
+      // 金钱
+      if (this.formInline.money == '') {
+        this.$message.error('金钱不能为空')
+        _true = false
+        return false
+      }
+      if (!nuber.test(this.formInline.money)) {
+        this.$message.error('金钱格式错误')
+        _true = false
+        return false
+      }
+      // 花费情况
+      if (this.formInline.text.length <= 4) {
+        this.$message.error('花费情况最低5个字')
+        _true = false
+        return false
+      }
+      // 状态
+      if (this.formInline.code == '') {
+        this.$message.error('状态不能为空')
+        _true = false
+        return false
+      }
+      this.axios.post('money', this.formInline).then(res => {
+        if (res.status === 200) {
+          if (res.data.code == 200) {
+            this.$message({ message: res.data.msg, type: 'success' })
+            this.reload()
+          } else if (res.data.code == 201) {
+            this.$message.error(res.data.msg)
+          }
+        }
+      })
+    },
+    // 金额查询
+    SearchInput () {
+      var money_all = 0
+      this.axios.post('MoneySearch').then(res => {
+        this.tableData = res.data.search
+        this.pageTotal = res.data.total
+        var tableData = []// 时间
+        var Data
+        for (var index in this.tableData) {
+          money_all += this.tableData[index].money
+          tableData.push(this.tableData[index].DateY)
+        }
+        Data = tableData.filter(function (item, index, self) {
+          return self.indexOf(item) == index
         })
-      },
-      //删除
-      handleDelete(index, row) {
-        this.axios.delete(`deleteMoney/${row}`,this.formInline).then(res=>{
-          if (res.status == 200){
-            if (res.data.status == true){
-              this.$message({ message: '删除成功', type: 'success' });
-              this.reload()
-            }else{
-              this.$message.error('名字不能为空');
-            }
-          }
-        })
-      },
-      //保存
-      onSubmit() {
-        var _true = true
-        var nameReg = /^[\u4E00-\u9FA5]{2,10}$/ // 验证人的名字
-        var nuber = /^\d+(\.\d+)?$/ // 验证数字
-        //提交时如果时间为空则默认提交时的时间
-        if(this.formInline.Date == ''){
-          this.formInline.Date = new Date()
+        if (tableData != '') {
+          this.options = Data
         }
-        //名字
-        if(this.formInline.name == ''){
-          this.$message.error('名字不能为空');
-          _true = false
-          return false
-        }
-        if (!nameReg.test(this.formInline.name)){
-          this.$message.error('名字格式错误');
-          _true = false
-          return false
-        }
-        //金钱
-        if (this.formInline.money == '') {
-          this.$message.error('金钱不能为空');
-          _true = false
-          return false
-        }
-        if (!nuber.test(this.formInline.money)){
-          this.$message.error('金钱格式错误');
-          _true = false
-          return false
-        }
-        //花费情况
-        if (this.formInline.text.length <=4) {
-          this.$message.error('花费情况最低5个字');
-          _true = false
-          return false
-        }
-        //状态
-        if (this.formInline.code =='') {
-          this.$message.error('状态不能为空');
-          _true = false
-          return false
-        }
-        this.axios.post('money',this.formInline).then(res=>{
-          if (res.status === 200) {
-            if (res.data.code == 200) {
-              this.$message({ message: res.data.msg, type: 'success' });
-              this.reload()
-            }else if (res.data.code == 201) {
-              this.$message.error(res.data.msg);
-            }
-          }
-        });
-      },
-      //金额查询
-      SearchInput(){
-        var money_all = 0;
-        this.axios.post('MoneySearch').then(res=>{
-          this.tableData = res.data.search;
-          this.pageTotal = res.data.total
-          var tableData = [];//时间
-          var Data;
-          for (var index in this.tableData){
-            money_all+= this.tableData[index].money
-            tableData.push(this.tableData[index].DateY)
-          }
-          Data = tableData.filter(function (item, index, self) {
-            return self.indexOf(item) == index
-          })
-          if (tableData !=''){
-            this.options = Data
-          }
-          this.moneyAll = money_all
-          this.backup = money_all
-        })
-      },
+        this.moneyAll = money_all
+        this.backup = money_all
+      })
+    },
     //  判断状态
-      ifCode(){
-        var all = ''
-          if (this.formInline.money <=5){
-            all+='优'
-          }else if (this.formInline.money <=9){
-            all+='良好'
-          }else if (this.formInline.money <= 15) {
-            all+='差'
-          } else if (this.formInline.money >= 20) {
-            all+='过高'
-        }
-        this.formInline.code = all
-      },
-      tableRowClassName({row, rowIndex}) {
-        if (row.money <= 5){
-          return 'success-row';
-        }else if (row.money <= 9){
-          return 'liangOk'
-        }else if (row.money <= 15) {
-          return 'nored'
-        }else if (row.money >= 20) {
-          return 'redmoney'
-        }
-        return '';
-      },
-      option(id){
-        var arr = [];
-        var number = 0;
-        //搜索内容
-        for (var i in this.tableData) {
-          if (id== this.tableData[i].DateY){
-            arr.push(this.tableData[i])
-          }
-        }
-        //搜索出来的内容循环金额相加
-        for (var i in arr){
-          number+=arr[i].money
-        }
-        if (id !=''){
-          this.moneyAll = number
-        }else{
-          this.moneyAll = this.backup
+    ifCode () {
+      var all = ''
+      if (this.formInline.money <= 5) {
+        all += '优'
+      } else if (this.formInline.money <= 9) {
+        all += '良好'
+      } else if (this.formInline.money <= 15) {
+        all += '差'
+      } else if (this.formInline.money >= 20) {
+        all += '过高'
+      }
+      this.formInline.code = all
+    },
+    tableRowClassName ({ row, rowIndex }) {
+      if (row.money <= 5) {
+        return 'success-row'
+      } else if (row.money <= 9) {
+        return 'liangOk'
+      } else if (row.money <= 15) {
+        return 'nored'
+      } else if (row.money >= 20) {
+        return 'redmoney'
+      }
+      return ''
+    },
+    option (id) {
+      var arr = []
+      var number = 0
+      // 搜索内容
+      for (var i in this.tableData) {
+        if (id == this.tableData[i].DateY) {
+          arr.push(this.tableData[i])
         }
       }
+      // 搜索出来的内容循环金额相加
+      for (var i in arr) {
+        number += arr[i].money
+      }
+      if (id != '') {
+        this.moneyAll = number
+      } else {
+        this.moneyAll = this.backup
+      }
     },
-    created () {
-      this.SearchInput();
-    },
+    //  date
+    data (val) {
+      var data = new Date(val)
+      var y = data.getFullYear()
+      var m = data.getMonth() + 1
+      var d = data.getDate()
+      return y + '-' + m + '-' + d
+    }
+  },
+  created () {
+    this.SearchInput()
   }
+}
 </script>
 
 <style scoped>

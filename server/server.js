@@ -48,25 +48,7 @@ var db = mysql.createConnection({
   database:'backstage'
 });
 db.connect();
-//查询
-// var sql = 'SELECT * FROM userpwd';
-//增
-// var addSql = "INSERT INTO xxxxx(name,pwd,time) VALUE('bbb','ccc')";
-/*db.query(sql,function (err, res) {
-  if (err){
-    console.log('err')
-  }else{
-    console.log(res)
-  }
-})*/
-/*connection.query(addSql,function (err, res) {
-  if (err){
-    console.log('err')
-  }else{
-    console.log(res)
-  }
-})*/
-
+var toens = '';
 app.all('*', function(req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
   res.header('Access-Control-Allow-Credentials', true);
@@ -76,6 +58,9 @@ app.all('*', function(req, res, next) {
   res.header("Content-Type", "application/json;charset=utf-8");
   next();
 });
+
+
+
 //封装时间 年月日
 function data (da) {
   var datas = new Date(da);
@@ -101,7 +86,8 @@ function datam (data) {
 //登录验证
 app.post('/api/login',(req,res)=>{
   var {name,password,token} = req.body;
-  var token = jwt.sign(name,password); //生成token
+  var token = jwt.sign({name:name},password,{expiresIn:60}); //生成token
+  toens = token;
   var sql = `select * from userpwd where name = '${name}' and pwd = '${password}'`;
   db.query(sql,function (err, result) {
     if (err || result.length == 0){

@@ -147,7 +147,6 @@ app.post('/api/UserNameUpdate',(req,res)=>{
   // var updataSqlNames = `update usernames set gender='${gender}',age='${age}',phone='${phone}',Email='${Email}',zhiye='${zhiye}' where user_id='${user_id}'`;
   // var addSql = `insert into usernames(phone,Email,age,gender,zhiye,user_id) values('${phone}','${Email}','${age}','${gender}','${zhiye}','${user_id}')`;
 });
-
 //个人信息查询
 app.post('/api/persone',(req,res)=>{
   var user_id = req.body;
@@ -430,11 +429,61 @@ app.post('/api/netDel',(req,res)=>{
     }
   });
 });
+//公告编辑
+app.post('/api/announcement',(req,res)=>{
+  var {name,text,date,user_id,status} = req.body;
+  var inserts = `insert into announcement(name,text,Data,user_id,status) values ('${name}','${text}','${date}','${user_id}','${status}')`;
+  db.query(inserts,function (err, result) {
+    if (err){
+      res.send({code:201,msg:'发布失败'});
+    }else{
+      res.send({code:200,msg:'发布成功'});
+    }
+  })
+});
+//公告查询
+app.get('/api/GetAnnouncement',(req,res)=>{
+  var dbCreate = `CREATE TABLE announcement(
+  id INT(11) NOT NULL AUTO_INCREMENT
+  ,name VARCHAR(15) NOT NULL,
+  text VARCHAR(255) NOT NULL,
+  Data date NOT NULL,
+  user_id INT(15) NOT NULL,
+  status INT(1) NOT NULL,
+  PRIMARY KEY(id))`;
+  db.query(dbCreate,function (err, result) {
+    if (!err){
+      console.log('公告表创建成功');
+    }
+  });
+  var sqlSelect = `select * from announcement`;
+  db.query(sqlSelect,function (err, result) {
+    if (err){
+      res.send({code:201,data:'查询失败'});
+    }else{
+      result.map(function (item) {
+        item.Data = data(item.Data);
+      });
+      res.send({code:200,data:result});
+    }
+  })
+});
+//公告修改
+app.post('/api/Updataannouncement',(req,res)=>{
+  var {id,name,text,Data,user_id,status} = req.body
+  var UpdataSql = `update announcement set status=1 where id='${id}'`;
+  db.query(UpdataSql,function (err, result) {
+    if (!err){
+      res.send({code:200,msg:'修改成功'});
+    }else{
+      res.send({code:201,msg:'修改失败'});
+    }
+  })
+});
 
 app.get('/',async (req,res)=>{
   res.send('index');
 });
-
 
 app.listen(8088,function () {
   console.log('http://localhost:8088');

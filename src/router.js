@@ -21,7 +21,10 @@ const router = new Router({
         { path: '/table', name: 'table', component: resolve => require(['@/views/table'], resolve) },
         { path: '/UserName', name: 'UserName', component: resolve => require(['@/views/UserName'], resolve) },
         { path: '/image_all', name: 'image_all', component: resolve => require(['@/views/image_all'], resolve) },
-        { path: '/netdisc', name: 'netdisc', component: resolve => require(['@/views/netdisc'], resolve) }
+        { path: '/netdisc', name: 'netdisc', component: resolve => require(['@/views/netdisc'], resolve) },
+        { path: '/announcement', name: 'announcement', component: resolve => require(['@/views/announcement'], resolve) },
+        { path: '/annouEdit', name: 'annouEdit', component: resolve => require(['@/components/annouEdit'], resolve) },
+        { path: '/viewAnnouncement/:id', name: 'viewAnnouncement', component: resolve => require(['@/views/viewAnnouncement'], resolve) },
       ]
     }
   ]

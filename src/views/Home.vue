@@ -41,9 +41,12 @@
                 <template slot="title"><i class="el-icon-setting"></i>{{name}}</template>
                 <el-menu-item index="1-2">个人信息</el-menu-item>
                 <el-menu-item index="1-1">个人反馈</el-menu-item>
+                <el-menu-item index="1-4">公告编辑</el-menu-item>
                 <el-menu-item index="1-3">退出账户</el-menu-item>
               </el-submenu>
-              <el-menu-item index="2">公告</el-menu-item>
+              <el-menu-item index="2">
+                <el-badge :is-dot="textDot" class="items">公告</el-badge>
+              </el-menu-item>
             </el-menu>
           </el-header>
           <el-main>
@@ -117,7 +120,8 @@ export default {
         user_id: sessionStorage.getItem(config.KEY.CACHE_USER_ID)
       },
       catalog: '/Feedback', // 目录
-      isCollapse: false
+      isCollapse: false,
+      textDot:false,//公告小红点
     }
   },
   methods: {
@@ -162,14 +166,16 @@ export default {
             }
           })
           this.one_ge = true
-          break
+          break;
         case '1-3':
           sessionStorage.clear()
           this.$router.push({ path: '/' })
-          break
+          break;
         case '2':
-          console.log('2')
-          break
+          this.$router.push('/announcement');
+          break;
+        case '1-4':
+          this.$router.push('annouEdit')
       }
     },
     //  个人反馈提交
@@ -305,18 +311,22 @@ export default {
           }
         }
       })
-    }
-  /*  wx(){
-      var pc = '';
-
-     var set =  setInterval(()=>{
-        pc = document.body.clientWidth
-      },1000)
-      console.log(pc)
-    } */
+    },
+  dot(){
+    this.axios.get('GetAnnouncement').then(res=>{
+      var data = res.data.data;
+      for (var index in data){
+        if (data[index].status === 0){
+          return this.textDot = true;
+        }else{
+          return this.textDot = false;
+          }
+        }
+      });
+    },
   },
   created () {
-
+    this.dot()
   },
   computed: {
 

@@ -1,6 +1,6 @@
 <template>
     <div class="netdisc">
-      <div class="top" v-show="fix">
+      <!--<div class="top" v-show="fix">
         <el-card class="box-card box-input">
           <div slot="header" class="clearfix">
             <span><b>友情提示</b></span>
@@ -13,7 +13,7 @@
             <el-button type="primary">主要按钮</el-button>
           </div>
         </el-card>
-      </div>
+      </div>-->
       <div class="btn">
         <el-button type="primary" size="small" @click="box_div = true">新建上传</el-button>
       </div>
@@ -63,7 +63,7 @@ export default {
   inject: ['reload'],
   data () {
     return {
-      fix: true,
+      // fix: true,
       box_div: false,
       fileList: [],
       tableData: [],
@@ -121,13 +121,13 @@ export default {
           if (res.data.code == 200) {
             this.$message({ message: res.data.msg, type: 'success' })
             this.reload()
-            this.fix = false
+            // this.fix = false
           } else {
-            this.fix = false
+            // this.fix = false
             this.$message.error(res.data.msg)
           }
         } else {
-          this.fix = false
+          // this.fix = false
           this.$message.error('数据异常')
         }
       })

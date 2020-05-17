@@ -193,13 +193,13 @@ export default {
     //  判断状态
     ifCode () {
       var all = ''
-      if (this.formInline.money <= 5) {
+      if (this.formInline.money <= 5 && this.formInline.money != '') {
         all += '优'
-      } else if (this.formInline.money <= 9) {
+      } else if (this.formInline.money <= 9 && this.formInline.money != '') {
         all += '良好'
-      } else if (this.formInline.money <= 15) {
+      } else if (this.formInline.money <= 15 && this.formInline.money != '') {
         all += '差'
-      } else if (this.formInline.money >= 20) {
+      } else if (this.formInline.money >= 20 && this.formInline.money != '') {
         all += '过高'
       }
       this.formInline.code = all

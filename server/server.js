@@ -481,6 +481,21 @@ app.post('/api/Updataannouncement',(req,res)=>{
   })
 });
 
+//公告多种删除
+app.post('/api/delete_announcement',async (req,res)=>{
+  let data = req.body;
+  for (let index in data){
+    let sql = `delete from announcement where id=${data[index].id}`;
+   await db.query(sql,async function (err, result) {
+      if (!err){
+        res.send({code:200,msg:'删除成功'});
+      }else{
+        res.send({code:201,msg:'删除失败'});
+      }
+    })
+  }
+})
+
 app.get('/',async (req,res)=>{
   res.send('index');
 });

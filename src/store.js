@@ -6,8 +6,8 @@ Vue.use(Vuex)
 
 export default new Vuex.Store({
   state: {
-    name: '',
-    user_id: '',
+    name: sessionStorage.getItem(config.KEY.CACHE_LOGIN_NAME) || '',
+    user_id: sessionStorage.getItem(config.KEY.CACHE_USER_ID) || '',
     netdisc_box: ''
   },
   getters: {

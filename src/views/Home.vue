@@ -2,7 +2,7 @@
     <div class="Home">
       <el-container style="height: 100vh;">
         <el-aside width="200px" style="background-color: rgb(238, 241, 246)">
-          <el-menu :default-openeds="['1','2']" @select="handleSelect" :collapse="isCollapse">
+          <el-menu :default-openeds="['1','2']" @select="handleSelect" :collapse="isCollapse" :default-active="index_active">
             <el-submenu index="1">
               <template slot="title">
                 <i class="el-icon-date"></i>
@@ -122,10 +122,12 @@ export default {
       catalog: '/Feedback', // 目录
       isCollapse: false,
       textDot:false,//公告小红点
+      index_active:'1-1',//当前激活页面
     }
   },
   methods: {
     handleSelect (key, keyPath) {
+      this.index_active = key
       switch (key) {
         case '1-1':
           this.catalog = '/Feedback'
@@ -169,7 +171,8 @@ export default {
           break;
         case '1-3':
           sessionStorage.clear()
-          this.$router.push({ path: '/' })
+          this.$router.push({ path: '/' });
+          window.location.reload();
           break;
         case '2':
           this.$router.push('/announcement');

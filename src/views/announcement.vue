@@ -1,7 +1,7 @@
 <template>
     <div class="announcement">
       <template>
-        <el-table :data="tableData" style="width: 100%" height="600">
+        <el-table :data="tableData" style="width: 100%" height="600" @selection-change="handle">
           <el-table-column type="selection" width="30"></el-table-column>
           <el-table-column prop="name" label="昵称" width="70"></el-table-column>
           <el-table-column label="信息" width="950">
@@ -17,7 +17,7 @@
           </el-table-column>
         </el-table>
       </template>
-      <el-button type="danger" size="medium">删除</el-button>
+      <el-button type="danger" size="medium" @click="delete_data">删除</el-button>
     </div>
 </template>
 
@@ -29,6 +29,7 @@
       return {
         tableData: [],
         checked: false,
+        multipleSelection: []
       }
     },
     methods:{
@@ -48,7 +49,25 @@
       handleClick(id){
         this.axios.post('Updataannouncement',id);
         this.$router.push(`/viewAnnouncement/${JSON.stringify(id)}`);
-      }
+      },
+      //删除
+      delete_data(){
+        let data = this.multipleSelection;
+        this.axios.post('delete_announcement',data).then(res=>{
+          if (res.status === 200){
+            if (res.data.code === 200){
+              this.$message({message:res.data.msg,type:'success'});
+              this.reload();
+            }else{
+              this.$message.error(res.data.msg);
+            }
+          }
+        })
+      },
+      //选中
+      handle(val){
+        this.multipleSelection = val;
+      },
     },
     created(){
       this.GetSql();
@@ -56,7 +75,7 @@
   }
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
   .el-row {
     margin-bottom: 20px;
   &:last-child {
